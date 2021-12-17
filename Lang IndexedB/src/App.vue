@@ -5,19 +5,13 @@
       <div class="w-50">
         <h4>My Friends</h4>
         <ul class="list-group mb-4">
-          <li
-            v-for="(friend, i) of friends"
-            :key="i"
-            class="list-group-item list-group-item-primary d-flex my-1"
-          >
+          <li v-for="(friend, i) of friends" :key="i" class="list-group-item list-group-item-primary d-flex my-1">
             <span>{{ friend.name.first }} {{ friend.name.last }}</span>
             <span class="flex-grow-1"></span>
-            <span @click="addFriend(friend)" class="btn-span"
-              ><i class="fas fa-plus-square"></i
-            ></span>
+            <span @click="addFriend(friend)" class="btn-span"><i class="fas fa-plus-square"></i></span>
           </li>
         </ul>
-        <button class="btn btn-primary">Store all</button>
+        <button class="btn btn-primary" @click="addAllFriends()">Store all</button>
       </div>
       <div class="w-50 ms-5">
         <h4>My Friends in the Database</h4>
@@ -36,7 +30,7 @@
               <td>{{ friend.name.last }}</td>
               <td>{{ friend.age }}</td>
               <td>
-                <span class="btn-span ms-3"><i class="fas fa-trash-alt"></i></span>
+                <span class="btn-span ms-3" @click="removeFriend(friend.id)"><i class="fas fa-trash-alt"></i></span>
               </td>
             </tr>
           </tbody>
@@ -51,13 +45,11 @@
         <input @focus="searchResult = false" v-model="id" class="form-control" type="text" />
       </div>
       <div class="col-1">
-        <button class="ms-3 btn btn-primary">Find!</button>
+        <button class="ms-3 btn btn-primary" @click="findFriend()">Find!</button>
       </div>
       <div class="col-3">
         <div v-if="searchResult && friend != null">
-          <span class="fw-bold">
-            Found: {{ friend.name.first }} {{ friend.name.last }}, {{ friend.age }}
-          </span>
+          <span class="fw-bold"> Found: {{ friend.name.first }} {{ friend.name.last }}, {{ friend.age }} </span>
         </div>
         <span v-else-if="searchResult" class="fw-bold text-danger">Not found</span>
       </div>
@@ -83,6 +75,7 @@
 </template>
 
 <script>
+import { openDB } from 'idb';
 export default {
   name: 'App',
   data() {
@@ -138,8 +131,49 @@ export default {
       newName: 'Cerny',
     };
   },
+  created() {
+    if (!window.indexedDB) return alert('IndexedDB is not available!');
+    if (!this.db) this.openDB();
+  },
+  methods: {
+    async openDB() {
+      this.db = await openDB('friendsDB1', 1, {
+        upgrade(db) {
+          db.createObjectStore('friends', { keyPath: 'id' });
+        },
+      });
+      this.getStoredFriends();
+    },
+    async addFriend(friend) {
+      // const tx = this.db.transaction('friends', 'readwrite'); // erstelle Transaktion im R/W Mode
+      // const store = tx.objectStore('friends'); // hole Zugriff auf den Store
+      // await store.put(friend); // put = neu oder update, je nach dem
+      // await tx.done; // warte auf Ende der Transaktion
+      await this.db.put('friends', friend);
+      this.getStoredFriends();
+    },
+    async addAllFriends() {
+      for (const friend of this.friends) {
+        this.addFriend(friend);
+      }
+    },
+    async removeFriend(id) {
+      await this.db.delete('friends', id);
+      this.getStoredFriends();
+    },
 
-  methods: {},
+    async findFriend() {
+      const res = await this.db.get('friends', Number(this.id));
+      if (res) {
+        this.searchResult = true;
+      }
+      
+    },
+
+    async getStoredFriends() {
+      this.storedFriends = await this.db.getAll('friends');
+    },
+  },
 };
 </script>
 

@@ -68,7 +68,29 @@
         <input v-model="newName" class="form-control" type="text" />
       </div>
       <div class="col-1">
-        <button class="btn btn-primary">Change!</button>
+        <button class="btn btn-primary" @click="updateFriend()">Change!</button>
+      </div>
+    </div>
+    <div class="mt-3 row align-items-center">
+      <div class="col-1">
+        <span>From Age:</span>
+      </div>
+      <div class="col-2">
+        <input v-model="fromAge" class="form-control" type="number" />
+      </div>
+      <div class="col-1">
+        <span>To Age:</span>
+      </div>
+      <div class="col-2">
+        <input v-model="toAge" class="form-control" type="number" />
+      </div>
+      <div class="col-1">
+        <button class="btn btn-primary" @click="getFriendsWithAge()">Filter!</button>
+      </div>
+      <div class="col-3" v-if="filterResult[0]">
+        <ul>
+          <li v-for="friend of filterResult" :key="friend.name.lastname">Found: {{ friend.name.first }} {{ friend.name.last }} {{ friend.age }}</li>
+        </ul>
       </div>
     </div>
   </div>
@@ -129,6 +151,9 @@ export default {
       storedFriends: [],
       oldName: 'Bridges',
       newName: 'Cerny',
+      fromAge: '',
+      toAge: '',
+      filterResult: [],
     };
   },
   created() {
@@ -139,7 +164,9 @@ export default {
     async openDB() {
       this.db = await openDB('friendsDB1', 1, {
         upgrade(db) {
-          db.createObjectStore('friends', { keyPath: 'id' });
+          const objectStore = db.createObjectStore('friends', { keyPath: 'id' });
+          objectStore.createIndex('lastname', 'name.last', { unique: true });
+          objectStore.createIndex('age', 'age', { unique: false });
         },
       });
       this.getStoredFriends();
@@ -166,8 +193,23 @@ export default {
       const res = await this.db.get('friends', Number(this.id));
       if (res) {
         this.searchResult = true;
+        this.friend = res;
       }
-      
+    },
+
+    async updateFriend() {
+      const tx = this.db.transaction('friends', 'readwrite');
+      const index = tx.store.index('lastname');
+      const obj = await index.get(this.oldName);
+      obj.name.last = this.newName;
+      await this.db.put('friends', obj);
+      await tx.done;
+
+      this.getStoredFriends();
+    },
+
+    async getFriendsWithAge() {
+      this.filterResult = await this.db.getAllFromIndex('friends', 'age', IDBKeyRange.bound(Number(this.fromAge), Number(this.toAge)));
     },
 
     async getStoredFriends() {

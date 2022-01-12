@@ -1,0 +1,2 @@
+Aufgabe 4: Welche Workbox Caching Strategie für employees hast du gerade selbst implementiert?
+Stale While Revalidate

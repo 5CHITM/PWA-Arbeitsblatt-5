@@ -6,7 +6,7 @@ require('dotenv').config();
 const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
 const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
 
-const { getEmployees } = require('../model/employees');
+const { getEmployees, delEmployee } = require('../model/employees');
 
 const subscription = [];
 
@@ -18,6 +18,13 @@ router.get(
   '/employees',
   asyncHandler(async (req, res) => {
     res.json(getEmployees());
+  }),
+);
+
+router.delete(
+  '/employee/:id',
+  asyncHandler(async (req, res) => {
+    res.status(200).send(delEmployee(req.params.id));
   }),
 );
 

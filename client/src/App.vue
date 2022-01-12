@@ -5,7 +5,7 @@
     <h1>Hey</h1>
     <ButtonGet @get="fetchData"></ButtonGet>
     <CardView :employees="employees" :offline="offline" @del="delEmployee"></CardView>
-    <button class="btn btn-primary" @click="subscribe">Subscribe</button>
+    <!-- <button class="btn btn-primary" @click="subscribe">Subscribe</button> -->
   </div>
 </template>
 
@@ -34,30 +34,71 @@ export default {
     window.addEventListener('online', () => (this.offline = false));
     window.addEventListener('offline', () => (this.offline = true));
     document.addEventListener('swUpdated', this.updateAvailable, { once: true });
+
+    if (!window.indexedDB) return alert('IndexedDB is not available!');
+    if (!this.db) this.openDB();
   },
   methods: {
-    async fetchData() {
+    async openDB() {
+      this.db = await openDB('employeesDB1', 1, {
+        upgrade(db) {
+          db.createObjectStore('employees', { keyPath: 'id' });
+        },
+      });
+    },
+
+    async getDataOff() {
+      const employees = await this.db.getAll('employees');
+      this.employees = employees.filter((el) => !el.isDeleted);
+    },
+
+    fetchData() {
       console.log('fetchData called');
+      if (this.offline) this.getDataOff();
+      else this.getDataOn();
+    },
+
+    async getDataOn() {
       try {
         let { data } = await axios.get(`${this.serverAddress}/employees`);
-        data = data.map((el) => ({ ...el, isDeleted: false }));
-        this.employees = data;
+        this.employees = data.map((el) => ({ ...el, isDeleted: false }));
+
+        const tx = this.db.transaction('employees', 'readwrite');
+        tx.objectStore('employees').clear();
+        await tx.done;
+
+        for (let employee of this.employees) {
+          await this.db.put('employees', employee);
+        }
       } catch (error) {
         console.error(error);
       }
     },
-    async delEmployee(e) {
+
+    delEmployee(e) {
       console.log('delEmployee called');
+      if (this.offline) this.delEmployeeOff(e);
+      else this.delEmployeeOn(e);
+      this.fetchData();
+    },
+
+    async delEmployeeOff(e) {
+      let employee = await this.db.get('employees', Number(e.id));
+      employee.isDeleted = true;
+      this.db.put('employees', employee);
+    },
+
+    async delEmployeeOn(e) {
       try {
         await axios({
-          url: `${process.env.VUE_APP_SERVER}/employees/${e.id}`,
+          url: `${process.env.VUE_APP_SERVER}/employee/${e.id}`,
           method: 'delete',
         });
-        this.fetchData();
       } catch (error) {
         console.error(error);
       }
     },
+
     updateAvailable() {
       if (confirm(`New content is available!. Click OK to refresh`)) {
         window.location.reload();

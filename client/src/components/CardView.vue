@@ -3,6 +3,7 @@
     <div v-show="employees.length > 0">
       <div class="row justify-content-center mt-4">
         <div class="card p-2 m-2 bg-light" style="width: 22rem" v-for="e in employees" :key="e.email">
+        <p>Status: {{e.isDeleted}}</p>
           <img
             :src="`${serverAddress}/${e.picture.large}
           `"

@@ -1,7 +1,7 @@
 {
   "employees": [
     {
-      "id": "1",
+      "id": 1,
       "gender": "male",
       "name": { "title": "Mr", "first": "Lucas", "last": "Garcia" },
       "location": {

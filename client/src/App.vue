@@ -22,6 +22,12 @@ export default {
     ButtonGet,
     CardView,
   },
+  watch: {
+    offline: function (newValue, oldValue) {
+      return `${newValue} ${oldValue}`;
+    },
+  },
+
   data() {
     return {
       serverAddress: process.env.VUE_APP_SERVER,
@@ -31,7 +37,11 @@ export default {
     };
   },
   created() {
-    window.addEventListener('online', () => (this.offline = false));
+    window.addEventListener('online', () => {
+      this.offline = false;
+      console.log('Online!');
+      this.updateStore();
+    });
     window.addEventListener('offline', () => (this.offline = true));
     document.addEventListener('swUpdated', this.updateAvailable, { once: true });
 
@@ -45,17 +55,18 @@ export default {
           db.createObjectStore('employees', { keyPath: 'id' });
         },
       });
-    },
-
-    async getDataOff() {
-      const employees = await this.db.getAll('employees');
-      this.employees = employees.filter((el) => !el.isDeleted);
+      this.updateStore();
     },
 
     fetchData() {
       console.log('fetchData called');
       if (this.offline) this.getDataOff();
       else this.getDataOn();
+    },
+
+    async getDataOff() {
+      const employees = await this.db.getAll('employees');
+      this.employees = employees.filter((el) => el.isDeleted == false);
     },
 
     async getDataOn() {
@@ -86,6 +97,8 @@ export default {
       let employee = await this.db.get('employees', Number(e.id));
       employee.isDeleted = true;
       this.db.put('employees', employee);
+      console.log('deleted');
+      this.fetchData();
     },
 
     async delEmployeeOn(e) {
@@ -97,6 +110,15 @@ export default {
       } catch (error) {
         console.error(error);
       }
+    },
+
+    async updateStore() {
+      const employees = await this.db.getAll('employees');
+      const employeesForDelete = employees.filter((el) => el.isDeleted == true);
+      console.log(employeesForDelete);
+      employeesForDelete.forEach((el) => {
+        this.delEmployeeOn(el);
+      });
     },
 
     updateAvailable() {

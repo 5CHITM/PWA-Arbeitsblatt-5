@@ -12,4 +12,8 @@ const delEmployee = (id) => {
   employees = employees.filter((e) => e.id != id);
 };
 
-module.exports = { getEmployees, delEmployee };
+const addEmployee = (e) => {
+  employees.push(e);
+};
+
+module.exports = { getEmployees, delEmployee, addEmployee };

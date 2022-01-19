@@ -2,6 +2,8 @@
   <div id="app" class="container d-flex flex-column justify-content-center align-items-center mt-5">
     <img :src="`${serverAddress}/employees.jpg`" class="mx-auto d-block my-3" width="300" alt="picture of employees" />
     <div class="alert alert-danger" role="alert" v-if="offline">Du bist offline...</div>
+    <h1>Add Employee</h1>
+    <AddEmp @add="addEmployee"></AddEmp>
     <h1>Hey</h1>
     <ButtonGet @get="fetchData"></ButtonGet>
     <CardView :employees="employees" :offline="offline" @del="delEmployee"></CardView>
@@ -15,12 +17,14 @@ import axios from 'axios';
 
 import ButtonGet from '@/components/ButtonGet.vue';
 import CardView from '@/components/CardView.vue';
+import AddEmp from '@/components/AddEmp.vue';
 
 export default {
   name: 'app',
   components: {
     ButtonGet,
     CardView,
+    AddEmp,
   },
   watch: {
     offline: function (newValue, oldValue) {
@@ -40,7 +44,7 @@ export default {
     window.addEventListener('online', () => {
       this.offline = false;
       console.log('Online!');
-      this.updateStore();
+      this.syncStore();
     });
     window.addEventListener('offline', () => (this.offline = true));
     document.addEventListener('swUpdated', this.updateAvailable, { once: true });
@@ -55,7 +59,7 @@ export default {
           db.createObjectStore('employees', { keyPath: 'id' });
         },
       });
-      this.updateStore();
+      this.syncStore();
     },
 
     fetchData() {
@@ -112,7 +116,42 @@ export default {
       }
     },
 
-    async updateStore() {
+    addEmployee(e) {
+      console.log('addEmployee called');
+      if (this.offline) this.addEmployeeOff(e);
+      else this.addEmployeeOn(e);
+      this.fetchData();
+    },
+
+    async addEmployeeOff(e) {
+      const tx = this.db.transaction('employees', 'readwrite');
+      tx.objectStore('employees').add(e);
+      await tx.done;
+
+      let employee = await this.db.add('employees', e);
+
+      employee.isDeleted = true;
+      this.db.put('employees', employee);
+      console.log('deleted');
+      this.fetchData();
+    },
+
+    async addEmployeeOn(e) {
+      try {
+        await axios({
+          url: `${process.env.VUE_APP_SERVER}/employee/${e.id}`,
+          method: 'post',
+          contentType: 'application/json',
+          data: {
+            newEmployee: e,
+          },
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    },
+
+    async syncStore() {
       const employees = await this.db.getAll('employees');
       const employeesForDelete = employees.filter((el) => el.isDeleted == true);
       console.log(employeesForDelete);
